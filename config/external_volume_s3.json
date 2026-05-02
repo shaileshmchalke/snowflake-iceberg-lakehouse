@@ -1,0 +1,158 @@
+{
+  "_comment": "External Volume Configuration Reference for Snowflake Iceberg",
+  "_note": "This file documents the external volume parameters used in this project.",
+  "_warning": "Do NOT store actual ARNs, bucket names, or credentials in this file if committing to a public repo. Use environment variables or Vault.",
+
+  "external_volumes": {
+    "primary": {
+      "name": "iceberg_prod_vol",
+      "region": "us-east-1",
+      "storage_provider": "S3",
+      "storage_base_url": "s3://<YOUR_BUCKET_NAME>/",
+      "storage_aws_role_arn": "arn:aws:iam::<DATA_ACCOUNT_ID>:role/snowflake-iceberg-role",
+      "storage_aws_external_id": "<RETRIEVED_FROM_DESCRIBE_EXTERNAL_VOLUME>",
+      "storage_aws_iam_user_arn": "<RETRIEVED_FROM_DESCRIBE_EXTERNAL_VOLUME>",
+      "comment": "Primary Iceberg volume — us-east-1. All production writes go here."
+    },
+    "dr": {
+      "name": "iceberg_dr_vol",
+      "region": "us-west-2",
+      "storage_provider": "S3",
+      "storage_base_url": "s3://<YOUR_DR_BUCKET_NAME>/",
+      "storage_aws_role_arn": "arn:aws:iam::<DATA_ACCOUNT_ID>:role/snowflake-iceberg-role-dr",
+      "comment": "DR external volume — us-west-2. Populated via S3 Cross-Region Replication."
+    }
+  },
+
+  "s3_bucket_config": {
+    "primary_bucket": {
+      "name": "<YOUR_BUCKET_NAME>",
+      "region": "us-east-1",
+      "versioning": "Enabled",
+      "encryption": {
+        "type": "aws:kms",
+        "kms_key_id": "arn:aws:kms:us-east-1:<DATA_ACCOUNT_ID>:key/<KEY_ID>"
+      },
+      "lifecycle_rules": [
+        {
+          "id": "trades-warm-intelligent-tiering",
+          "prefix": "trades_warm/",
+          "status": "Enabled",
+          "transitions": [
+            {
+              "days": 90,
+              "storage_class": "INTELLIGENT_TIERING"
+            }
+          ]
+        },
+        {
+          "id": "trades-cold-glacier-transition",
+          "prefix": "trades_cold/",
+          "status": "Enabled",
+          "transitions": [
+            {
+              "days": 30,
+              "storage_class": "STANDARD_IA"
+            },
+            {
+              "days": 90,
+              "storage_class": "GLACIER_IR"
+            }
+          ]
+        },
+        {
+          "id": "iceberg-metadata-retention",
+          "prefix": "trades_cold/metadata/",
+          "status": "Enabled",
+          "expiration": {
+            "days": 365,
+            "_note": "Old Iceberg metadata snapshots expire after 1 year. Tune based on compliance needs."
+          }
+        }
+      ],
+      "replication": {
+        "enabled": true,
+        "destination_bucket": "<YOUR_DR_BUCKET_NAME>",
+        "destination_region": "us-west-2",
+        "replication_role_arn": "arn:aws:iam::<DATA_ACCOUNT_ID>:role/s3-crr-role",
+        "storage_class_override": "STANDARD_IA",
+        "_note": "CRR copies at reduced storage class. DR restore path: promote to STANDARD if needed."
+      },
+      "block_public_access": {
+        "block_public_acls": true,
+        "block_public_policy": true,
+        "ignore_public_acls": true,
+        "restrict_public_buckets": true
+      }
+    }
+  },
+
+  "iam_role_config": {
+    "role_name": "snowflake-iceberg-role",
+    "account_id": "<DATA_ACCOUNT_ID>",
+    "_setup_sequence": [
+      "1. Create S3 bucket (Terraform: config/terraform/main.tf)",
+      "2. Create IAM role with placeholder trust policy",
+      "3. Run sql/01_setup_external_volume.sql",
+      "4. DESCRIBE EXTERNAL VOLUME to get snowflake_iam_user_arn and external_id",
+      "5. Update Terraform variables with those values",
+      "6. terraform apply to update trust policy",
+      "7. Re-run CREATE EXTERNAL VOLUME with validated ARN",
+      "8. Run connectivity test (Stage creation in script 01)"
+    ],
+    "trust_policy": {
+      "_note": "Trust policy is managed by Terraform — see config/terraform/main.tf",
+      "effect": "Allow",
+      "principal": {
+        "AWS": "<SNOWFLAKE_IAM_USER_ARN>"
+      },
+      "actions": ["sts:AssumeRole"],
+      "condition": {
+        "StringEquals": {
+          "sts:ExternalId": "<SNOWFLAKE_EXTERNAL_ID>"
+        }
+      }
+    },
+    "permissions": {
+      "s3_actions": [
+        "s3:GetObject",
+        "s3:GetObjectVersion",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion",
+        "s3:GetBucketLocation",
+        "s3:GetBucketVersioning",
+        "s3:ListBucket",
+        "s3:ListBucketVersions",
+        "s3:AbortMultipartUpload",
+        "s3:ListMultipartUploadParts"
+      ],
+      "kms_actions": [
+        "kms:GenerateDataKey",
+        "kms:Decrypt"
+      ]
+    }
+  },
+
+  "iceberg_table_config": {
+    "trades_warm": {
+      "catalog": "SNOWFLAKE",
+      "external_volume": "iceberg_prod_vol",
+      "base_location": "trades_warm/",
+      "partition_spec": ["trade_year", "trade_month", "asset_class"],
+      "file_format": "PARQUET",
+      "compression": "SNAPPY",
+      "target_file_size_mb": 512
+    },
+    "trades_cold": {
+      "catalog": "SNOWFLAKE",
+      "external_volume": "iceberg_prod_vol",
+      "base_location": "trades_cold/",
+      "partition_spec": ["trade_year", "trade_month", "asset_class"],
+      "file_format": "PARQUET",
+      "compression": "SNAPPY",
+      "target_file_size_mb": 1024,
+      "_note": "Larger target file size for cold tier — batch workloads prefer fewer, larger files"
+    }
+  }
+}

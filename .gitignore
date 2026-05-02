@@ -1,0 +1,103 @@
+# =============================================================================
+# .gitignore — snowflake-iceberg-lakehouse
+# =============================================================================
+
+# -----------------------------------------------------------------------
+# SECRETS AND CREDENTIALS — NEVER COMMIT
+# -----------------------------------------------------------------------
+*.env
+.env
+.env.*
+terraform.tfvars
+terraform.tfvars.json
+*.tfvars
+secrets/
+credentials/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# -----------------------------------------------------------------------
+# TERRAFORM STATE AND CACHE
+# -----------------------------------------------------------------------
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfplan
+tfplan.out
+
+# -----------------------------------------------------------------------
+# SNOWSQL HISTORY AND SESSION FILES
+# -----------------------------------------------------------------------
+.snowsql/
+*.snowsql_history
+snowsql_history.sql
+
+# -----------------------------------------------------------------------
+# MIGRATION LOGS (can contain row counts, financial metadata)
+# -----------------------------------------------------------------------
+logs/
+*.log
+
+# -----------------------------------------------------------------------
+# MARATHI PRACTICE GUIDE — LOCAL USE ONLY, DO NOT PUBLISH
+# -----------------------------------------------------------------------
+marathi-practice-guide.md
+
+# -----------------------------------------------------------------------
+# PYTHON VIRTUAL ENVIRONMENTS (if adding Python tooling later)
+# -----------------------------------------------------------------------
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# -----------------------------------------------------------------------
+# NODE / NPM (if adding JS tooling)
+# -----------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# -----------------------------------------------------------------------
+# MACOS AND EDITOR ARTIFACTS
+# -----------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# -----------------------------------------------------------------------
+# OUTPUT FILES FROM BENCHMARK / VALIDATION RUNS
+# -----------------------------------------------------------------------
+output/
+reports/
+*.csv
+*.xlsx
+*.parquet
+
+# -----------------------------------------------------------------------
+# TEMPORARY SNOWFLAKE EXPORT FILES
+# -----------------------------------------------------------------------
+unload/
+export/
+*.gz
+*.snappy.parquet

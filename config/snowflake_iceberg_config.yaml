@@ -1,0 +1,165 @@
+# =============================================================================
+# FILE: config/snowflake_iceberg_config.yaml
+# PURPOSE: Configuration for the migration orchestration scripts.
+#          Used by scripts/migrate_table.sh and scripts/validate_migration.sh
+#
+# SECRETS: Do not hardcode passwords here.
+#          Use environment variables or a secrets manager.
+#          All values prefixed with ${ENV_VAR} are resolved at runtime.
+# =============================================================================
+
+snowflake:
+  account: "${SNOWFLAKE_ACCOUNT}"         # e.g., xy12345.us-east-1
+  user: "${SNOWFLAKE_USER}"
+  password: "${SNOWFLAKE_PASSWORD}"       # Or use: authenticator: externalbrowser
+  role: MIGRATION_ROLE
+  warehouse: MIGRATION_WH
+  database: TRADE_ANALYTICS
+  schema: MANAGED
+
+  # Connection pool for parallel migration (one connection per month-partition thread)
+  connection_timeout_seconds: 300
+  login_timeout_seconds: 60
+
+# =============================================================================
+# MIGRATION JOB CONFIGURATION
+# =============================================================================
+
+migration:
+  source_schema: TRADE_ANALYTICS.MANAGED
+  source_table: TRADES_COLD_LEGACY
+
+  target_schema: TRADE_ANALYTICS.ICEBERG
+
+  # Migration date range (inclusive on both ends)
+  # Format: YYYY-MM-DD
+  start_date: "2019-01-01"
+  end_date: "2023-12-31"
+
+  # Granularity of each migration batch
+  # "MONTH" is recommended for most datasets.
+  # Use "WEEK" if monthly partitions exceed 20GB.
+  batch_granularity: MONTH
+
+  # Number of concurrent month-migration threads
+  # Higher = faster total migration, more credit consumption
+  # Recommended: 2-4 for LARGE warehouse, 1 for MEDIUM
+  parallel_threads: 2
+
+  # Warehouse to use during migration
+  migration_warehouse: MIGRATION_WH
+
+  # Retry configuration
+  retry:
+    max_attempts: 3
+    retry_delay_seconds: 60
+    retry_on_errors:
+      - "SQL compilation error"
+      - "connection timeout"
+      - "warehouse is suspended"
+
+  # Snapshot table configuration (see docs/lessons-learned.md Failure 4)
+  snapshot:
+    enabled: true
+    schema: TRADE_ANALYTICS.MANAGED
+    prefix: "MIGRATION_SNAP_"
+    # Snapshots are auto-dropped after validation passes.
+    auto_drop_after_validation: true
+
+  # Compaction configuration
+  compaction:
+    enabled: true
+    # Run compaction after all months in a year are migrated
+    trigger: AFTER_YEAR_COMPLETE
+    warehouse: TRADE_COLD_WH
+    # Minimum file size to trigger compaction (files below this are merged)
+    min_file_size_mb: 128
+    # Target file size after compaction
+    target_file_size_mb: 512
+
+# =============================================================================
+# VALIDATION CONFIGURATION
+# =============================================================================
+
+validation:
+  # Validation levels to run (1-5, see sql/05_validation_queries.sql)
+  levels_enabled: [1, 2, 3, 4, 5]
+
+  # Stop migration if any validation level fails
+  fail_fast: true
+
+  # Sampling configuration (Level 5)
+  sampling:
+    sample_size_rows: 1000
+    hash_columns:
+      - trade_id
+      - trade_date
+      - trade_timestamp
+      - asset_class
+      - instrument_id
+      - notional_usd
+      - direction
+      - counterparty_id
+      - trader_id
+      - book_id
+      - trade_status
+
+  # Acceptable tolerance for numeric aggregates (floating point rounding)
+  numeric_tolerance: 0.01
+
+# =============================================================================
+# LOGGING CONFIGURATION
+# =============================================================================
+
+logging:
+  # Log migration progress to Snowflake audit table
+  snowflake_audit_table: TRADE_ANALYTICS.MANAGED.MIGRATION_LOG
+
+  # Log level: DEBUG | INFO | WARNING | ERROR
+  level: INFO
+
+  # File logging (for local script runs)
+  file:
+    enabled: true
+    path: "./logs/migration_$(date +%Y%m%d).log"
+    max_size_mb: 100
+
+# =============================================================================
+# NOTIFICATION CONFIGURATION
+# =============================================================================
+
+notifications:
+  # Send Slack notification on completion or failure
+  slack:
+    enabled: "${SLACK_NOTIFICATIONS_ENABLED:-false}"
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    channel: "#data-platform-alerts"
+    notify_on:
+      - MIGRATION_COMPLETE
+      - MIGRATION_FAILED
+      - VALIDATION_FAILED
+
+  # Email notification
+  email:
+    enabled: false
+    recipients:
+      - "data-platform@company.com"
+
+# =============================================================================
+# COST CONTROL
+# =============================================================================
+
+cost_control:
+  # Auto-suspend migration warehouse if idle for this long
+  warehouse_auto_suspend_seconds: 300
+
+  # Stop migration if estimated credits exceed this threshold
+  # Prevents runaway migration jobs
+  max_credits_per_run: 500
+
+  # Time window for migration runs (avoid peak business hours)
+  # Format: HH:MM UTC
+  allowed_run_window:
+    start: "20:00"
+    end: "06:00"
+    timezone: "UTC"
