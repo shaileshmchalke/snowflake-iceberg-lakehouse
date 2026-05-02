@@ -1,6 +1,12 @@
 # Snowflake Iceberg Lakehouse Migration
 ### 500TB Historical Trade Data | 62% Storage Cost Reduction | Financial Services
 
+[![GitHub stars](https://img.shields.io/github/stars/tumchausername/snowflake-iceberg-lakehouse)](https://github.com/tumchausername/snowflake-iceberg-lakehouse/stargazers)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Terraform](https://img.shields.io/badge/terraform-1.5+-blue)](https://terraform.io)
+[![Snowflake](https://img.shields.io/badge/snowflake-iceberg-29B5E8)](https://snowflake.com)
+[![AWS S3](https://img.shields.io/badge/AWS-S3-FF9900)](https://aws.amazon.com/s3)
+
 > **Role:** Senior Snowflake Solutions Architect  
 > **Client:** US-based Financial Services Firm (bulge-bracket trading desk)  
 > **Timeline:** 14 weeks (discovery → production cutover)  
