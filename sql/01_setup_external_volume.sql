@@ -181,6 +181,33 @@ GRANT ROLE ICEBERG_ADMIN  TO ROLE SYSADMIN;
 GRANT ROLE ICEBERG_READER TO ROLE SYSADMIN;
 GRANT ROLE MIGRATION_ROLE TO ROLE SYSADMIN;
 
+-- -----------------------------------------------------------------------------
+-- STEP 7: Create MIGRATION_LOG audit table
+-- NOTE: Moved here from sql/03_migrate_data.sql — this table must exist
+--       BEFORE migrate_table.sh runs. Running 03 before 01 caused errors.
+-- -----------------------------------------------------------------------------
+USE ROLE MIGRATION_ROLE;
+
+CREATE TABLE IF NOT EXISTS TRADE_ANALYTICS.MANAGED.MIGRATION_LOG (
+    migration_run_id  VARCHAR(36)    DEFAULT UUID_STRING() NOT NULL,
+    source_table      VARCHAR(200)   NOT NULL,
+    target_table      VARCHAR(200)   NOT NULL,
+    partition_start   DATE           NOT NULL,
+    partition_end     DATE           NOT NULL,
+    rows_migrated     NUMBER(20,0)   NOT NULL,
+    migration_ts      TIMESTAMP_NTZ  DEFAULT CURRENT_TIMESTAMP(),
+    status            VARCHAR(20)    DEFAULT 'COMPLETED',
+    notes             VARCHAR(2000),
+    CONSTRAINT pk_migration_log PRIMARY KEY (migration_run_id)
+)
+DATA_RETENTION_TIME_IN_DAYS = 90
+COMMENT = 'Audit log: one row per migrated month-partition.';
+
+GRANT SELECT, INSERT ON TABLE TRADE_ANALYTICS.MANAGED.MIGRATION_LOG
+    TO ROLE MIGRATION_ROLE;
+GRANT SELECT ON TABLE TRADE_ANALYTICS.MANAGED.MIGRATION_LOG
+    TO ROLE ICEBERG_READER;
+
 -- =============================================================================
 -- END OF SCRIPT 01
 -- NEXT: Run sql/02_create_iceberg_tables.sql
