@@ -234,20 +234,10 @@ FROM TRADE_ANALYTICS.ICEBERG.TRADES_COLD
 WHERE trade_year = 2021 AND trade_month = 1;
 
 -- =============================================================================
--- MIGRATION LOG TABLE (run once before starting migration)
+-- MIGRATION LOG TABLE
 -- =============================================================================
-CREATE TABLE IF NOT EXISTS TRADE_ANALYTICS.MANAGED.MIGRATION_LOG (
-    migration_run_id  VARCHAR(36)    DEFAULT UUID_STRING(),
-    source_table      VARCHAR(200)   NOT NULL,
-    target_table      VARCHAR(200)   NOT NULL,
-    partition_start   DATE           NOT NULL,
-    partition_end     DATE           NOT NULL,
-    rows_migrated     NUMBER         NOT NULL,
-    migration_ts      TIMESTAMP_NTZ  DEFAULT CURRENT_TIMESTAMP(),
-    status            VARCHAR(20)    DEFAULT 'COMPLETED',
-    notes             VARCHAR(2000)
-)
-COMMENT = 'Audit log for Iceberg migration progress';
+-- MIGRATION_LOG table is created in sql/01_setup_external_volume.sql Step 7.
+-- Ensure script 01 has been run before this script.
 
 -- =============================================================================
 -- POST-COMPACTION (run after all months for a given year are migrated)
