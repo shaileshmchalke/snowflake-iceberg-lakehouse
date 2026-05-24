@@ -367,20 +367,24 @@ snowflake-iceberg-lakehouse/
 ├── docs/
 │   ├── architecture-decisions.md      ← Full ADR log (5 decisions)
 │   ├── cost-analysis.md               ← Detailed cost model with formulas
-│   └── lessons-learned.md             ← Post-mortem: 4 failures + 13 rules
+│   ├── lessons-learned.md             ← Post-mortem: 4 failures + 13 rules
+│   └── runbook.md                     ← Daily/monthly/quarterly ops procedures
 ├── sql/
-│   ├── 01_setup_external_volume.sql   ← External volume DDL + IAM steps
-│   ├── 02_create_iceberg_tables.sql   ← Iceberg DDL + unified view + procedures
+│   ├── 00_prerequisites_check.sql     ← Pre-flight validation — run this first
+│   ├── 01_setup_external_volume.sql   ← External volume DDL + IAM + MIGRATION_LOG
+│   ├── 02_create_iceberg_tables.sql   ← Iceberg DDL + snapshot procedure + task
 │   ├── 03_migrate_data.sql            ← Snapshot-first migration template
 │   ├── 04_performance_benchmarks.sql  ← Benchmark test queries + results extraction
-│   └── 05_validation_queries.sql      ← 5-level data quality validation suite
+│   ├── 05_validation_queries.sql      ← 5-level data quality validation suite
+│   └── 06_create_unified_view.sql     ← v_all_trades standalone DDL (ADR-005)
 ├── config/
 │   ├── external_volume_s3.json        ← External volume config reference
 │   ├── snowflake_iceberg_config.yaml  ← Migration job configuration
 │   └── terraform/
-│       ├── main.tf                    ← S3 + IAM + KMS + CRR infrastructure
+│       ├── main.tf                    ← S3 + IAM + KMS + CRR + DR fixes
 │       └── variables.tf               ← All configurable parameters
 └── scripts/
+    ├── compaction.sh                  ← Post-migration Iceberg file compaction
     ├── migrate_table.sh               ← Month-by-month migration orchestrator
     └── validate_migration.sh          ← Post-migration validation suite
 ```
